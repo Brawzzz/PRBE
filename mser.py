@@ -4,7 +4,6 @@ import glob
 from circularity_check import circularity_check
 from intensity_check import intensity_check
 from duplicated_check import duplicated_check
-from interactive_binarization import interactive_binarization
 
 #---------- PATH ----------#
 CAM = 'B2'
@@ -15,11 +14,11 @@ INTRINSIC_PATH = "C:/COURS/SUPMECA/C2/S8/PRBE/Test-5DOF_structure/Undamaged/" + 
 GROUND_MOTION_PATH = "C:/COURS/SUPMECA/C2/S8/PRBE/Test-5DOF_structure/Undamaged/" + CAM + "/Ground motion/"
 
 image_names = glob.glob(GROUND_MOTION_PATH + '*.bmp')
-img = cv.imread(image_names[5], cv.IMREAD_GRAYSCALE)
+img = cv.imread(image_names[0], cv.IMREAD_GRAYSCALE)
 
 #------------- ROI IMAGE -------------#
 x0 = 150
-y0 = 225
+y0 = 265
 
 window_width = 1280
 window_height = 650
@@ -32,28 +31,20 @@ cv.waitKey(0)
 cv.destroyAllWindows()
 
 #------------- IMAGE PROCESSING -------------#
-sobel_x = np.array([[ 1,  0,  -1], [ 1,  0,  -1], [1, 0, -1]])
-sobel_y = np.array([[ 1,  1,  1], [ 0,  0,  0], [-1, -1, -1]])
+# img_blur = cv.GaussianBlur(roi_img, (3,3), 0)
 
-img_sobel_x = cv.filter2D(roi_img, -1, kernel=sobel_x)
-img_sobel_y = cv.filter2D(roi_img, -1, kernel=sobel_y)
+th_min = 45
+th_max = 255
+# (th_min, th_max) = interactive_binarization(img_blur)
+(ret, img_bw) = cv.threshold(roi_img, th_min, th_max, cv.THRESH_BINARY)
 
-img_sobel = cv.addWeighted(img_sobel_x, 0.5, img_sobel_y, 0.5, 0)
-img_blur = cv.GaussianBlur(roi_img, (3,3), 0)
-
-cv.imshow('img_blur', img_sobel)
+cv.imshow('img_bw', img_bw)
 cv.waitKey(0)
 cv.destroyAllWindows()
 
-# # th_min = 50
-# # th_max = 255
-
-# (th_min, th_max) = interactive_binarization(img_blur)
-# (ret, img_bw) = cv.threshold(img_blur, th_min, th_max, cv.THRESH_BINARY)
-
 #---------------- MSER DETECTION ----------------#
 mser = cv.MSER_create(delta=2, min_area=2, max_area=500, max_variation=0.5)
-(regions, a_1) = mser.detectRegions(img_blur)
+(regions, a) = mser.detectRegions(img_bw)
 
 hulls = [cv.convexHull(p) for p in regions]
 
@@ -91,7 +82,7 @@ for ind in Bbox:
         
 result_centroid = list(set(result_centroid))
 
-print(len(result_centroid))
+print(f"Number of myre detected : {len(result_centroid)}")
 
 #------------------- VISUALIZATION -------------------#
 img_clone_selection_col = img_clone_selection.copy()
@@ -109,8 +100,8 @@ for i, c in enumerate(result_centroid):
 cv.polylines(img_clone_selection_col, Contours, isClosed=True, color=(0, 255, 0), thickness=2)
 
 cv.namedWindow('selected MSER', cv.WINDOW_AUTOSIZE)
-cv.imshow('selected MSER', img_clone_selection_col)  # afficher l'image avec les labels et contours
-cv.imwrite('./OUTPUT/selected_MSER.jpg', img_clone_selection_col)  # sauver l'image
+cv.imshow('selected MSER', img_clone_selection_col) 
+cv.imwrite('./OUTPUT/selected_MSER.jpg', img_clone_selection_col)
 
 cv.waitKey()
 cv.destroyAllWindows()

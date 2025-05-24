@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 
 
-CIRCULARITY_THRESHOLD = 0.85
+CIRCULARITY_THRESHOLD = 0.80
 
 #----------------------------------------------------#
 def circularity_check(img, regions, hulls):

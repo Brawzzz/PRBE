@@ -8,7 +8,7 @@ def intensity_check(img, regions, hulls):
     Contours = []
     Centers = []
 
-    intensity_threshold = 15 
+    intensity_threshold = 2 
 
     for index, (region, cnt) in enumerate(zip(regions, hulls)):
 
