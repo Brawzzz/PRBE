@@ -4,11 +4,11 @@ import numpy as np
 
 def intensity_check(img, regions, hulls):
     
-    Regions = []
-    Contours = []
-    Centers = []
+    new_regions = []
+    new_contours = []
+    new_centers = []
 
-    intensity_threshold = 2 
+    intensity_threshold = 10
 
     for index, (region, cnt) in enumerate(zip(regions, hulls)):
 
@@ -25,20 +25,21 @@ def intensity_check(img, regions, hulls):
             bright_mean = np.mean([img[p[1], p[0]] for p in region])
 
             if(bright < bright_mean - intensity_threshold) :
-                Regions.append(region)
-                Contours.append(cnt)
-                Centers.append(center)
+                new_regions.append(region)
+                new_contours.append(cnt)
+                new_centers.append(center)
 
-    clone = img.copy()
-    clone = cv.cvtColor(clone, cv.COLOR_GRAY2RGB)
+    #------------------- DISPLAY -------------------#
+    img_clone = img.copy()
+    img_clone = cv.cvtColor(img_clone, cv.COLOR_GRAY2RGB)
 
-    cv.polylines(clone, Contours, isClosed=True, color=(0, 255, 0))
+    cv.polylines(img_clone, new_contours, isClosed=True, color=(0, 255, 0))
 
     cv.namedWindow('selected MSER from intensity', cv.WINDOW_AUTOSIZE)
-    cv.imshow('selected MSER from intensity', clone)
-    cv.imwrite('./OUTPUT/selected_MSER_intensity.jpg', clone)
+    cv.imshow('selected MSER from intensity', img_clone)
+    cv.imwrite('./OUTPUT/selected_MSER_intensity.jpg', img_clone)
 
     cv.waitKey()
     cv.destroyAllWindows()
 
-    return Regions, Contours, Centers, clone
+    return(new_regions, new_contours, new_centers, img_clone)

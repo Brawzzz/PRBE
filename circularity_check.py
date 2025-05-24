@@ -2,13 +2,13 @@ import cv2 as cv
 import numpy as np
 
 
-CIRCULARITY_THRESHOLD = 0.80
+CIRCULARITY_THRESHOLD = 0.85
 
 #----------------------------------------------------#
 def circularity_check(img, regions, hulls):
 
-    Regions = []
-    Contours = []
+    new_regions = []
+    new_contours = []
 
     for index, (region, cnt) in enumerate(zip(regions, hulls)):
         area = cv.contourArea(cnt) 
@@ -20,19 +20,20 @@ def circularity_check(img, regions, hulls):
         circularity = 4 * np.pi * area / (perimeter ** 2) 
 
         if(circularity > CIRCULARITY_THRESHOLD) :
-            Regions.append(region) 
-            Contours.append(cnt)
+            new_regions.append(region) 
+            new_contours.append(cnt)
 
-    clone = img.copy()
-    clone = cv.cvtColor(img, cv.COLOR_GRAY2RGB) 
+    #------------------- DISPLAY -------------------#
+    img_clone = img.copy()
+    img_clone = cv.cvtColor(img, cv.COLOR_GRAY2RGB) 
 
-    cv.polylines(clone, Contours, isClosed=True, color=(0, 255, 0))
+    cv.polylines(img_clone, new_contours, isClosed=True, color=(0, 255, 0))
 
     cv.namedWindow('circular MSER', cv.WINDOW_AUTOSIZE) 
-    cv.imshow('circular_MSER', clone)
-    cv.imwrite('./OUTPUT/circular_MSER.jpg', clone)
+    cv.imshow('circular_MSER', img_clone)
+    cv.imwrite('./OUTPUT/circular_MSER.jpg', img_clone)
 
     cv.waitKey()
     cv.destroyAllWindows()
 
-    return Regions, Contours, clone
+    return (new_regions, new_contours, img_clone)
