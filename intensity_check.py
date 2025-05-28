@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-
+import setup as stp
 
 def intensity_check(img, regions, hulls):
     
@@ -37,7 +37,7 @@ def intensity_check(img, regions, hulls):
 
     cv.namedWindow('selected MSER from intensity', cv.WINDOW_AUTOSIZE)
     cv.imshow('selected MSER from intensity', img_clone)
-    cv.imwrite('./OUTPUT/selected_MSER_intensity.jpg', img_clone)
+    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.SELECTED_MSER_INTENSITY_FILE + stp.IMG_EXTENSION, img_clone)
 
     cv.waitKey()
     cv.destroyAllWindows()

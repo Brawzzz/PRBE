@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-
+import setup as stp
 
 CIRCULARITY_THRESHOLD = 0.85
 
@@ -31,7 +31,7 @@ def circularity_check(img, regions, hulls):
 
     cv.namedWindow('circular MSER', cv.WINDOW_AUTOSIZE) 
     cv.imshow('circular_MSER', img_clone)
-    cv.imwrite('./OUTPUT/circular_MSER.jpg', img_clone)
+    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.CIRCULAR_MSER_FILE + stp.IMG_EXTENSION, img_clone)
 
     cv.waitKey()
     cv.destroyAllWindows()

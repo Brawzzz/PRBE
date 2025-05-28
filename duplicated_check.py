@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-
+import setup as stp
 
 def duplicated_check(img, regions, cnt, centers):
 
@@ -29,7 +29,7 @@ def duplicated_check(img, regions, cnt, centers):
 
     cv.namedWindow('duplicated MSER suppression', cv.WINDOW_AUTOSIZE)
     cv.imshow('duplicated MSER suppression', clone)
-    cv.imwrite('./OUTPUT/duplicated_MSER_suppression.jpg', clone)
+    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.DUPLICATED_MSER_SUPRESSION_FILE + stp.IMG_EXTENSION, clone)
 
     cv.waitKey()
     cv.destroyAllWindows()

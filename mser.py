@@ -1,24 +1,16 @@
 import cv2 as cv
 import numpy as np
 import glob
+import setup as stp
 from circularity_check import circularity_check
 from intensity_check import intensity_check
 from duplicated_check import duplicated_check
 
-def detect_mser(img, th_min, th_max):
-
-    #------------- IMAGE PROCESSING -------------#
-    (ret, img_bw) = cv.threshold(img, th_min, th_max, cv.THRESH_BINARY)
-
-    cv.namedWindow('img_bw', cv.WINDOW_AUTOSIZE) 
-    cv.imshow('img_bw', img_bw)
-
-    cv.waitKey(0)
-    cv.destroyAllWindows()
+def detect_mser(img):
 
     #---------------- MSER DETECTION ----------------#
-    mser = cv.MSER_create(delta=2, min_area=2, max_area=500, max_variation=0.5)
-    (regions, bbox) = mser.detectRegions(img_bw)
+    mser = cv.MSER_create(delta=2, min_area=9, max_area=100, max_variation=0.5)
+    (regions, bbox) = mser.detectRegions(img)
 
     hulls = [cv.convexHull(p) for p in regions]
 
@@ -29,7 +21,7 @@ def detect_mser(img, th_min, th_max):
 
     cv.namedWindow('all MSER', cv.WINDOW_AUTOSIZE) 
     cv.imshow('all MSER', img_clone) 
-    cv.imwrite('./OUTPUT/all_MSER.jpg', img_clone)
+    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.ALL_MSER_FILE + stp.IMG_EXTENSION, img_clone)
 
     cv.waitKey()
     cv.destroyAllWindows()
@@ -75,7 +67,7 @@ def detect_mser(img, th_min, th_max):
 
     cv.namedWindow('selected MSER', cv.WINDOW_AUTOSIZE)
     cv.imshow('selected MSER', img_clone_selection_col) 
-    cv.imwrite('./OUTPUT/selected_MSER.jpg', img_clone_selection_col)
+    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.SELECTED_MSER_FILE + stp.IMG_EXTENSION, img_clone_selection_col)
 
     cv.waitKey()
     cv.destroyAllWindows()
@@ -83,9 +75,9 @@ def detect_mser(img, th_min, th_max):
     return(regions, contours, centers)
 
 
-#=======================================================#
-#======================== MAIN =========================#
-#=======================================================#
+#=========================================================================================================#
+#================================================= MAIN ==================================================#
+#=========================================================================================================#
 
 if __name__ == "__main__":
 
