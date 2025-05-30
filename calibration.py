@@ -3,14 +3,13 @@ import cv2 as cv
 import glob
 import setup as stp
 
-
 SETUP = stp.setup_files(stp.CAM_PATH)
 
 if(SETUP == True):
 
     #------------- IMAGES -------------#
     image_names = glob.glob(stp.INTRINSIC_PATH + '*.bmp')
-
+    
     #--------------- INIT -------------#
     grid = np.zeros((stp.COL * stp.ROW, 3), np.float32)
     grid[:, :2] = np.mgrid[0:stp.COL, 0:stp.ROW].T.reshape(-1, 2) * stp.D 
@@ -26,30 +25,30 @@ if(SETUP == True):
     conut_img = 0
     for img_i in image_names:
         
-        img_gray = cv.imread(img_i, cv.IMREAD_GRAYSCALE)
+        img_i_gray = cv.imread(img_i, cv.IMREAD_GRAYSCALE)
         
-        (ret, corners) = cv.findChessboardCorners(img_gray, (stp.COL, stp.ROW), None)
+        (ret, corners) = cv.findChessboardCorners(img_i_gray, (stp.COL, stp.ROW), None)
 
         if ret == True:
         
             points_3d_world.append(grid)
 
-            corners_refine = cv.cornerSubPix(img_gray, corners, (11, 11), (-1, -1), criteria)
+            corners_refine = cv.cornerSubPix(img_i_gray, corners, (11, 11), (-1, -1), criteria)
             points_2d_image.append(corners_refine)
 
-            img_color = cv.cvtColor(img_gray, cv.COLOR_GRAY2BGR)
+            img_color = cv.cvtColor(img_i_gray, cv.COLOR_GRAY2BGR)
             img_color = cv.drawChessboardCorners(img_color, (stp.COL, stp.ROW), corners_refine, ret)
-            cv.imwrite(stp.CALIBRATION_OUTPUT_PATH + stp.CAM_PATH + stp.CORNERS + stp.CHECKBOARD_FILE + "_" + str(conut_img) + stp.IMG_EXTENSION, img_color)
+            cv.imwrite(stp.IMG_INTRINSIC_CALIB + str(conut_img) + stp.IMG_EXTENSION, img_color)
 
         conut_img += 1
 
     (h, w) = img_color.shape[:2]
-    (ret, mtx, dist_coeff, r_vector, t_vector) = cv.calibrateCamera(points_3d_world, points_2d_image, (w, h), None, None)
+    (ret, camera_mtx, dist_coeff, r_vector, t_vector) = cv.calibrateCamera(points_3d_world, points_2d_image, (w, h), None, None)
 
-    print("Error calibrateCamera : \n", ret)
+    print("\nError calibrateCamera : \n", ret)
 
-    print("#---------- Camera matrix ----------#\n")
-    print(mtx)
+    print("\n#---------- Camera matrix ----------#\n")
+    print(camera_mtx)
 
     print("\n#----------Distortion coefficient ----------#\n")
     print(dist_coeff)
@@ -60,13 +59,13 @@ if(SETUP == True):
     print("\n#----------Translation Vectors ----------#\n")
     print(t_vector)
 
-    np.savez(stp.CALIBRATION_OUTPUT_PATH + stp.CAM_PATH + stp.CAM_DATA_FILE + "_" + stp.CAM, mtx=mtx, dist_coeff=dist_coeff, r_vector=r_vector, t_vector=t_vector)
+    np.savez(stp.INTRINSIC_CALIB_DATA, mtx=camera_mtx, dist_coeff=dist_coeff, r_vector=r_vector, t_vector=t_vector)
 
     #------------- COMPUTE FOCAL --------------#
-    fx = mtx[0, 0] * stp.SENSOR_X 
-    fy = mtx[1, 1] * stp.SENSOR_Y
+    fx = camera_mtx[0, 0] * stp.SENSOR_X 
+    fy = camera_mtx[1, 1] * stp.SENSOR_Y
 
-    print("Focal length:")
+    print("\n#--------- Focal length ---------#")
     print("fx = ", fx, "mm")
     print("fy = ", fy, "mm")
     print("\n")
@@ -76,44 +75,86 @@ if(SETUP == True):
     #-----------------------------------------------------------------------------------#
     image_names = glob.glob(stp.EXTRINSIC_PATH + '*.bmp')
 
-    with np.load(stp.CALIBRATION_OUTPUT_PATH + stp.CAM_PATH + stp.CAM_DATA_FILE + "_" + stp.CAM + stp.NPZ_EXTENSION) as X:
-        (mtx, dist_coeff, r_vector, t_vector) = [X[i] for i in ('mtx', 'dist_coeff', 'r_vector', 't_vector')]
+    with np.load(stp.INTRINSIC_CALIB_DATA + stp.NPZ_EXTENSION) as X:
+        (camera_mtx, dist_coeff, r_vector, t_vector) = [X[i] for i in ('mtx', 'dist_coeff', 'r_vector', 't_vector')]
 
+    img_color = cv.imread(image_names[0], cv.IMREAD_COLOR_BGR)
     img_gray = cv.imread(image_names[0], cv.IMREAD_GRAYSCALE)
-
+    
     (h, w) = img_gray.shape[:2]
 
-    (new_camera_mtx, roi) = cv.getOptimalNewCameraMatrix(mtx, dist_coeff, (w, h), 1, (w, h))
-    undistorted_img = cv.undistort(img_gray, mtx, dist_coeff, None, new_camera_mtx)
+    if(stp.CAM == "B1"):
+        structure_points_3d = np.array([
+            [-10.75, -21.0, 197],
+            [-10.75, -21.0, 401],
+            [-10.75, -21.0, 605],
+            [-10.75, -21.0, 809],
+            [288, 278, 197],
+            [288, 278, 401],
+            [288, 278, 605],
+            [288, 278, 809]
+        ], dtype=np.float32)
 
-    (ret, corners) = cv.findChessboardCorners(undistorted_img, (stp.COL, stp.ROW), None)
+        structure_points_2d = np.array([
+            [331, 155],
+            [600, 155],
+            [869, 158],
+            [1138, 161],
+            [293, 701],
+            [581, 709],
+            [872, 709],
+            [1165, 712]
+        ], dtype=np.float32)
 
-    if not ret:
-        print("#========== CHECKBOARD NOT DETECTED ==========#")
-    else :
-        points_2d_image = cv.cornerSubPix(undistorted_img, corners, (11, 11), (-1, -1), criteria)
+    else:
+        structure_points_3d = np.array([
+            [-10.75, -21.0, 197],
+            [-10.75, -21.0, 401],
+            [-10.75, -21.0, 605],
+            [-10.75, -21.0, 809],
+            [288, 278, 197],
+            [288, 278, 401],
+            [288, 278, 605],
+            [288, 278, 809]
+        ], dtype=np.float32)
 
-        points_3d_world = np.zeros((stp.COL * stp.ROW, 3), np.float32)
-        points_3d_world[:, :2] = np.mgrid[0:stp.COL, 0:stp.ROW].T.reshape(-1, 2) * stp.D
+        structure_points_2d = np.array([
+            [279.183584, 263.493661],
+            [566.611565, 256.617393],
+            [854.039545, 255.242140],
+            [1131.840751, 255.242140],
+            [273.682570, 858.978424],
+            [574.863086, 857.603171],
+            [870.542587, 845.225889],
+            [1156.595314, 838.349622]
+        ], dtype=np.float32)
 
-        #---------- TRANSLATION & ROTATION ----------#
-        (ret, r_vector, t_vector) = cv.solvePnP(points_3d_world, points_2d_image, mtx, dist_coeff)
+    (success, r_vector, t_vector) = cv.solvePnP(structure_points_3d, structure_points_2d, camera_mtx, dist_coeff)
 
-        #---------- ROTATION MATRIX ----------#
-        R = cv.Rodrigues(r_vector)[0]
+    (projected_points, _) = cv.projectPoints(structure_points_3d, r_vector, t_vector, camera_mtx, dist_coeff)
+    for p in projected_points:
+        cv.circle(img_color, tuple(p[0].astype(int)), 5, (0, 0, 255), -1)
 
-        #---------- CAMERA PROJECTION MATRIX ----------#
-        Rt = np.hstack((R, t_vector))
-        P = np.dot(mtx, Rt)
+    cv.imwrite(stp.IMG_EXTRINSIC_CALIB, img_color)
+    cv.imshow("Projection", img_color)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 
-        print("\n#---------- Camera projection matrix ----------#")
-        print(P)
+    #---------- ROTATION MATRIX ----------#
+    R = cv.Rodrigues(r_vector)[0]
 
-        print("\n#---------- Rotation matrix ----------#")
-        print(R)
+    #---------- CAMERA PROJECTION MATRIX ----------#
+    Rt = np.hstack((R, t_vector))
+    P = np.dot(camera_mtx, Rt)
 
-        print("\n#---------- Translation vector ----------#")
-        print(t_vector)
-        print("\n")
+    print("\n#---------- Camera projection matrix ----------#")
+    print(P)
 
-        np.savez(stp.CALIBRATION_OUTPUT_PATH + stp.CAM_PATH + stp.CAM_PROJECTION_FILE + "_" + stp.CAM, P)
+    print("\n#---------- Rotation matrix ----------#")
+    print(R)
+
+    print("\n#---------- Translation vector ----------#")
+    print(t_vector)
+    print("\n")
+
+    np.savez(stp.EXTRINSIC_CALIB_DATA, P)
