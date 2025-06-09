@@ -1,16 +1,19 @@
 import cv2 as cv
 import numpy as np
 import glob
+import sys
 import setup as stp
-from circularity_check import circularity_check
 from intensity_check import intensity_check
 from duplicated_check import duplicated_check
 
-def detect_mser(img):
+#--------------------------------------------------------------------------------------------------#
+#----------------------------------------------- MSER ---------------------------------------------#
+#--------------------------------------------------------------------------------------------------#
+def detect_mser(img, intensity_th):
 
     #---------------- MSER DETECTION ----------------#
-    mser = cv.MSER_create(delta=2, min_area=9, max_area=100, max_variation=0.5)
-    (regions, bbox) = mser.detectRegions(img)
+    mser = cv.MSER_create(delta=2, min_area=9, max_area=20, max_variation=2)
+    (regions, b_box) = mser.detectRegions(img)
 
     hulls = [cv.convexHull(p) for p in regions]
 
@@ -19,20 +22,21 @@ def detect_mser(img):
 
     cv.polylines(img_clone, hulls, 1, (0, 255, 0))
 
-    cv.namedWindow('all MSER', cv.WINDOW_AUTOSIZE) 
-    cv.imshow('all MSER', img_clone) 
-    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.ALL_MSER_FILE + stp.IMG_EXTENSION, img_clone)
-
-    cv.waitKey()
-    cv.destroyAllWindows()
+    if(stp.SHOW_IMAGE):
+        cv.namedWindow('all MSER', cv.WINDOW_AUTOSIZE) 
+        cv.imshow('all MSER', img_clone) 
+        cv.waitKey()
+        cv.destroyAllWindows()
+        
+    cv.imwrite(stp.IMG_MSER_ALL, img_clone)
 
     #----------------- MSER SELECTION ---------------#
-    (regions_circ, contours_circ, img_clone_circ) = circularity_check(img, regions, hulls)
-    (regions_int, contours_int, Centers_int, img_clone_int) = intensity_check(img, regions_circ, contours_circ)
+    (regions_int, contours_int, Centers_int, img_clone_int) = intensity_check(img, regions, hulls, intensity_th)
     (regions, contours, centers, b_box, img_clone_selection) = duplicated_check(img, regions_int, contours_int, Centers_int)
 
+    centers.sort(key=lambda x : x[1], reverse=False)
+
     result_centroid = []
-    
     for ind in b_box:
 
         temp = []
@@ -45,8 +49,9 @@ def detect_mser(img):
 
         if temp:
             result_centroid.append(tuple(np.mean(temp, axis=0, dtype=int)))
-            
+    
     result_centroid = list(set(result_centroid))
+    result_centroid.sort(key=lambda x : x[1], reverse=False)
 
     print(f"Number of myre detected : {len(result_centroid)} \n")
 
@@ -60,36 +65,57 @@ def detect_mser(img):
     thickness = 1
 
     for i, c in enumerate(result_centroid):
-        number = str(i + 1)
+        number = str(i)
         cv.putText(img_clone_selection_col, number, (c[0] + 10, c[1] - 10), font, font_scale, color, thickness)
 
     cv.polylines(img_clone_selection_col, contours, isClosed=True, color=(0, 255, 0), thickness=2)
 
     cv.namedWindow('selected MSER', cv.WINDOW_AUTOSIZE)
     cv.imshow('selected MSER', img_clone_selection_col) 
-    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.SELECTED_MSER_FILE + stp.IMG_EXTENSION, img_clone_selection_col)
-
     cv.waitKey()
     cv.destroyAllWindows()
 
-    return(regions, contours, centers)
+    cv.imwrite(stp.IMG_MSER_SELECTED, img_clone_selection_col)
 
+    return(regions, contours, result_centroid)
 
-#=========================================================================================================#
-#================================================= MAIN ==================================================#
-#=========================================================================================================#
+#--------------------------------------------------------------------------------------------------#
+#-------------------------------------------- MATCHING --------------------------------------------#
+#--------------------------------------------------------------------------------------------------#
+def find_matching_centers(mser_centers):
 
+    centers_b1 = mser_centers[0]
+    centers_b2 = mser_centers[1]
+
+    matching_centers = []
+
+    for c1_i in centers_b1 :
+
+        d_min = sys.float_info.max
+
+        for c2_i in centers_b2 :
+
+            x0 = c1_i[0]
+            y0 = c1_i[1]
+            x1 = c2_i[0]
+            y1 = c2_i[1]
+
+            d = np.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+
+            if(d < d_min):
+                d_min = d
+                c2_i_min = c2_i
+
+        matching_centers.append((c1_i, c2_i_min))
+    
+    return matching_centers
+
+#--------------------------------------------------------------------------------------------------#
+#---------------------------------------------- LOCAL MAIN ----------------------------------------#
+#--------------------------------------------------------------------------------------------------#
 if __name__ == "__main__":
 
-    #---------- PATH ----------#
-    CAM = 'B2'
-
-    EXTRINSIC_PATH = "C:/COURS/SUPMECA/C2/S8/PRBE/Test-5DOF_structure/Undamaged/" + CAM + "/Calibration/Extrinsic/"
-    INTRINSIC_PATH = "C:/COURS/SUPMECA/C2/S8/PRBE/Test-5DOF_structure/Undamaged/" + CAM + "/Calibration/Intrinsic/"
-
-    GROUND_MOTION_PATH = "C:/COURS/SUPMECA/C2/S8/PRBE/Test-5DOF_structure/Undamaged/" + CAM + "/Ground motion/"
-
-    image_names = glob.glob(GROUND_MOTION_PATH + '*.bmp')
+    image_names = glob.glob(stp.GROUND_MOTION_PATH + '*.bmp')
     img = cv.imread(image_names[0], cv.IMREAD_GRAYSCALE)
 
     #------------- ROI IMAGE -------------#

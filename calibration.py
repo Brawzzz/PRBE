@@ -84,6 +84,7 @@ if(SETUP == True):
     (h, w) = img_gray.shape[:2]
 
     if(stp.CAM == "B1"):
+
         structure_points_3d = np.array([
             [-10.75, -21.0, 197],
             [-10.75, -21.0, 401],
@@ -106,7 +107,8 @@ if(SETUP == True):
             [1165, 712]
         ], dtype=np.float32)
 
-    else:
+    elif(stp.CAM == "B2"):
+        
         structure_points_3d = np.array([
             [-10.75, -21.0, 197],
             [-10.75, -21.0, 401],
@@ -157,4 +159,4 @@ if(SETUP == True):
     print(t_vector)
     print("\n")
 
-    np.savez(stp.EXTRINSIC_CALIB_DATA, P)
+    np.savez(stp.EXTRINSIC_CALIB_DATA, P=P, R=R, r_vector=r_vector, t_vector=t_vector)

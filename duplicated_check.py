@@ -4,7 +4,7 @@ import setup as stp
 
 def duplicated_check(img, regions, cnt, centers):
 
-    n_atol = 5 
+    n_atol = 10 
 
     box = [cv.boundingRect(i) for i in cnt]
     B = np.array(box)
@@ -27,12 +27,13 @@ def duplicated_check(img, regions, cnt, centers):
     clone = cv.cvtColor(clone, cv.COLOR_GRAY2RGB)
     cv.polylines(clone, new_contours, isClosed=True, color=(0, 255, 0))
 
-    cv.namedWindow('duplicated MSER suppression', cv.WINDOW_AUTOSIZE)
-    cv.imshow('duplicated MSER suppression', clone)
-    cv.imwrite(stp.MSER_OUTPUT_FILE + stp.DUPLICATED_MSER_SUPRESSION_FILE + stp.IMG_EXTENSION, clone)
-
-    cv.waitKey()
-    cv.destroyAllWindows()
+    if(stp.SHOW_IMAGE):
+        cv.namedWindow('duplicated MSER suppression', cv.WINDOW_AUTOSIZE)
+        cv.imshow('duplicated MSER suppression', clone)
+        cv.waitKey()
+        cv.destroyAllWindows()
+        
+    cv.imwrite(stp.IMG_MSER_DUPLICATED_SUPRESSION, clone)
 
     return(new_regions, new_contours, new_centers, b_box, clone)
 
