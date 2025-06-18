@@ -30,7 +30,6 @@ def intensity_check(img, regions, hulls, intensity_th = 5):
     #------------------- DISPLAY -------------------#
     img_clone = img.copy()
     img_clone = cv.cvtColor(img_clone, cv.COLOR_GRAY2RGB)
-
     cv.polylines(img_clone, new_contours, isClosed=True, color=(0, 255, 0))
 
     if(stp.SHOW_IMAGE):
@@ -41,4 +40,4 @@ def intensity_check(img, regions, hulls, intensity_th = 5):
     
     cv.imwrite(stp.IMG_MSER_SELECTED_INTENSITY, img_clone)
 
-    return(new_regions, new_contours, new_centers, img_clone)
+    return(new_regions, new_contours, new_centers)

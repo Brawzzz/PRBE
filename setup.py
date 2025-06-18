@@ -1,26 +1,29 @@
-import sys
 import os 
-import pathlib
 from enum import Enum
+import setup_camera as stp_cam
 
-class Cam(Enum):
-    B1 = 'B1'
-    B2 = 'B2'
-
+#--------------------------------------------------------------------------------------------------------------------#
+#------------------------------------------------------- ENUM -------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------#
 class Sequence(Enum):
+    
     GROUND_MOTION = "Ground_Motion"
     NOISE = "Noise"
     SHOCK = "Shock"
 
+#--------------------------------------------------------------------------------------------------------------------#
+#------------------------------------------------------- PARAMS -----------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------#
 SHOW_IMAGE = False
 
-#--------------------------------------------------------------------------------------#
-#---------------------------------------- PATH ----------------------------------------#
-#--------------------------------------------------------------------------------------#
-CAM = Cam.B1.value
-CAM_PATH = CAM + '/'
+WINDOW_WIDTH = 1300
+WINDOW_HEIGHT = 200
 
-#-------------------- CAMERA : Basler_acA1300-200um --------------------#
+CAMS = stp_cam.CAMS 
+CAM = stp_cam.CAM
+CAM_PATH = stp_cam.CAM_PATH
+
+#---------------------------- CAMERA : Basler_acA1300-200um ---------------------------#
 SENSOR_X = 0.0048 
 SENSOR_Y = 0.0048 
 
@@ -28,16 +31,18 @@ COL = 8
 ROW = 6
 D = 25 
 
-#-------------------- IMAGES --------------------#
+#--------------------------------------------------------------------------------------------------------------------#
+#------------------------------------------------------- PATH -------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------------------------#
 IMG_EXTENSION = ".png"
 NPZ_EXTENSION = ".npz"
 NPY_EXTENSION = ".npy"
 
-#-------------------- CALIBRATION --------------------#
+#------------------------------------- CALIBRATION ------------------------------------#
 UNDAMAGED_PATH = "./5DOF_structure/Undamaged/"
 
-EXTRINSIC_PATH = UNDAMAGED_PATH + CAM + "/Calibration/Extrinsic/"
-INTRINSIC_PATH = UNDAMAGED_PATH + CAM + "/Calibration/Intrinsic/"
+EXTRINSIC_PATH = UNDAMAGED_PATH + CAM_PATH + "Calibration/Extrinsic/"
+INTRINSIC_PATH = UNDAMAGED_PATH + CAM_PATH + "Calibration/Intrinsic/"
 
 CALIBRATION_OUTPUT_PATH = "./output/calibration/"
 
@@ -49,18 +54,18 @@ EXTRINSIC_CALIB = "extrinsic_calib"
 INTRINSIC_CALIB_DATA_FILE = 'intrinsic_calib_data'
 EXTRINSIC_CALIB_DATA_FILE = 'extrinsic_calib_data'
 
-INTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + CAM_PATH + INTRINSIC_CALIB_PATH + INTRINSIC_CALIB_DATA_FILE + "_" + CAM
-EXTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + CAM_PATH + EXTRINSIC_CALIB_PATH + EXTRINSIC_CALIB_DATA_FILE + "_" + CAM
+INTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + CAM_PATH + INTRINSIC_CALIB_PATH + INTRINSIC_CALIB_DATA_FILE + "_" + CAM.name
+EXTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + CAM_PATH + EXTRINSIC_CALIB_PATH + EXTRINSIC_CALIB_DATA_FILE + "_" + CAM.name
 
 IMG_INTRINSIC_CALIB = CALIBRATION_OUTPUT_PATH + CAM_PATH + INTRINSIC_CALIB_PATH + INTRINSIC_CALIB + "_"  
 IMG_EXTRINSIC_CALIB = CALIBRATION_OUTPUT_PATH + CAM_PATH + EXTRINSIC_CALIB_PATH + EXTRINSIC_CALIB + IMG_EXTENSION
 
-#-------------------- SEQUENCES --------------------#
-GROUND_MOTION_PATH = UNDAMAGED_PATH + CAM + "/" + Sequence.GROUND_MOTION.value + "/"
-NOISE_PATH = UNDAMAGED_PATH + CAM + "/" + Sequence.NOISE.value +"/"
-SHOCK_PATH = UNDAMAGED_PATH + CAM + "/" + Sequence.SHOCK.value + "/"
+#-------------------------------------- SEQUENCES ------------------------------------#
+GROUND_MOTION_PATH = UNDAMAGED_PATH + CAM_PATH + Sequence.GROUND_MOTION.value + "/"
+NOISE_PATH = UNDAMAGED_PATH + CAM_PATH + Sequence.NOISE.value + "/"
+SHOCK_PATH = UNDAMAGED_PATH + CAM_PATH + Sequence.SHOCK.value + "/"
 
-#-------------------- MSER --------------------#
+#--------------------------------------- MSER  ---------------------------------------#
 MSER_OUTPUT_FILE = "./output/mser/"
 
 MSER_ALL_FILE = "MSER_all"
@@ -73,21 +78,32 @@ IMG_MSER_SELECTED_INTENSITY = MSER_OUTPUT_FILE + CAM_PATH + MSER_SELECTED_INTENS
 IMG_MSER_DUPLICATED_SUPRESSION = MSER_OUTPUT_FILE + CAM_PATH + MSER_DUPLICATED_SUPRESSION_FILE + IMG_EXTENSION
 IMG_MSER_SELECTED = MSER_OUTPUT_FILE + CAM_PATH + MSER_SELECTED_FILE + IMG_EXTENSION
 
-#------------------------------------------------------------------------------------------#
-#---------------------------------------- FUNCTION ----------------------------------------#
-#------------------------------------------------------------------------------------------#
-def setup_files(cam_path):
+#-------------------------------- TEMPLATE MATCHING-----------------------------------#
+TEMPLATE_MATCHING_PATH = "./output/template_matching/"
+
+TEMPLATE_FILE_NAME = 'mire_template_' + CAM.name
+TEMPLATE_MATCHING_OUTPUT_NAME = "template_matching_" + CAM.name
+
+TEMPLATE_PATH = TEMPLATE_MATCHING_PATH + CAM_PATH + TEMPLATE_FILE_NAME + IMG_EXTENSION
+TEMPLATE_MATCHING_OUTPUT = TEMPLATE_MATCHING_PATH + CAM_PATH + TEMPLATE_MATCHING_OUTPUT_NAME + IMG_EXTENSION
+
+#-------------------------------------------------------------------------------------------------------------------#
+#----------------------------------------------------- FUNCTION ----------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------#
+def setup_files(cam):
 
     setup = False
     try:
-        calibration_path = os.path.join(CALIBRATION_OUTPUT_PATH, cam_path)
+        calibration_path = os.path.join(CALIBRATION_OUTPUT_PATH, cam.path)
         corners_path = os.path.join(calibration_path, EXTRINSIC_CALIB_PATH.strip("/"))
         checkboard_path = os.path.join(calibration_path, INTRINSIC_CALIB_PATH.strip("/"))
         
         if not os.path.exists(calibration_path):
-            print(f"#==================== CREATING : {calibration_path} ====================#")
+            print("#======================================================================#")
+            print(f"CREATING : {calibration_path}")
             os.makedirs(calibration_path, exist_ok=True)
-            print("#==================== DONE ====================#")
+            print("\t\t\tDONE")
+            print("#======================================================================#")
         
         if not os.path.exists(corners_path):
             os.makedirs(corners_path, exist_ok=True)
@@ -95,65 +111,109 @@ def setup_files(cam_path):
         if not os.path.exists(checkboard_path):
             os.makedirs(checkboard_path, exist_ok=True)
 
-        for cam in Cam:
+        for cam_i in CAMS:
 
-            cam_path_mser = cam.value + "/"
-            mser_path = os.path.join(MSER_OUTPUT_FILE, cam_path_mser)
+            mser_path = os.path.join(MSER_OUTPUT_FILE, cam_i.path)
+            template_matching_path = os.path.join(TEMPLATE_MATCHING_PATH, cam_i.path)
 
             if not os.path.exists(mser_path):
-                print(f"#==================== CREATING : {mser_path} ====================#")
+                print("#======================================================================#")
+                print(f"CREATING : {mser_path}")
                 os.makedirs(mser_path, exist_ok=True)
-                print("#==================== DONE ====================#")
+                print("\t\t\tDONE")
+                print("#======================================================================#")
 
+            if not os.path.exists(template_matching_path):
+                print("#======================================================================#")
+                print(f"CREATING : {template_matching_path}")
+                os.makedirs(template_matching_path, exist_ok=True)
+                print("\t\t\tDONE")
+                print("#======================================================================#")
+            
         else:
-            print("#==================== ALL REPOSITORIES ALREADY EXIST ====================#")
+            print("#======================================================================#")
+            print(f"\t\t\t\tSETUP OK")
         
         setup = True
 
     except Exception as e:
-        print("#==================== ERROR WHILE CREATING FILE ====================#")
+
+        print("#======================================================================#")
+        print(f"\t\tERROR WHILE CREATING FILE")
         print(f"{e}")
+        print("#======================================================================#")
+
         setup = False
 
     return setup
 
-def change_sequence_path(cam, seq):
+def switch_sequence_path(cam, seq):
 
     new_path = ""
     if(seq == Sequence.GROUND_MOTION.value):
-        new_path = UNDAMAGED_PATH + cam + "/" + Sequence.GROUND_MOTION.value +"/"
+        new_path = UNDAMAGED_PATH + cam.path + Sequence.GROUND_MOTION.value + "/"
     elif(seq == Sequence.NOISE.value):
-        new_path = UNDAMAGED_PATH + cam + "/" + Sequence.NOISE.value + "/"
+        new_path = UNDAMAGED_PATH + cam.path + Sequence.NOISE.value + "/"
     elif(seq == Sequence.SHOCK.value):
-        new_path = UNDAMAGED_PATH + cam + "/" + Sequence.SHOCK.value + "/"
+        new_path = UNDAMAGED_PATH + cam.path + Sequence.SHOCK.value + "/"
     
-    print("#=========== Sequence path change ==========#")
+    print("#======================================================================#")
+    print(f"\t\t\tSequence path change")
+    print("#======================================================================#")
     return(new_path)
 
+def switch_calib_path(cam, type="ext"):
+    if(type == "ext"):
+        EXTRINSIC_PATH = UNDAMAGED_PATH + cam.path + "Calibration/Extrinsic/"
+        return(EXTRINSIC_PATH)
+    
+    elif(type == "int"):
+        INTRINSIC_PATH = UNDAMAGED_PATH + cam.path + "Calibration/Intrinsic/"
+        return(INTRINSIC_PATH)
 
-def change_calib_data_path(cam, type="ext"):
+def switch_calib_data_path(cam, type="ext"):
 
     if(type == "ext"):
-        EXTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + cam + "/" + EXTRINSIC_CALIB_PATH + EXTRINSIC_CALIB_DATA_FILE + "_" + cam
+        EXTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + cam.path + EXTRINSIC_CALIB_PATH + EXTRINSIC_CALIB_DATA_FILE + "_" + cam.name
         return(EXTRINSIC_CALIB_DATA)
     
     elif(type == "int"):
-        INTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + cam + "/" + INTRINSIC_CALIB_PATH + INTRINSIC_CALIB_DATA_FILE + "_" + cam
+        INTRINSIC_CALIB_DATA = CALIBRATION_OUTPUT_PATH + cam.path + INTRINSIC_CALIB_PATH + INTRINSIC_CALIB_DATA_FILE + "_" + cam.name
         return(INTRINSIC_CALIB_DATA)
 
-
-def mser_all(cam_path):
-    IMG_MSER_ALL = MSER_OUTPUT_FILE + cam_path + MSER_ALL_FILE + IMG_EXTENSION
+def switch_calib_img_path(cam, type="ext"):
+    
+    if(type == "ext"):
+        IMG_EXTRINSIC_CALIB = CALIBRATION_OUTPUT_PATH + cam.path + EXTRINSIC_CALIB_PATH + EXTRINSIC_CALIB + IMG_EXTENSION
+        return(IMG_EXTRINSIC_CALIB)
+    
+    elif(type == "int"):
+        IMG_INTRINSIC_CALIB = CALIBRATION_OUTPUT_PATH + cam.path + EXTRINSIC_CALIB_PATH + INTRINSIC_CALIB + "_"
+        return(IMG_INTRINSIC_CALIB)
+    
+#------------------------------------------------ MSER ------------------------------------#
+def mser_all(cam):
+    IMG_MSER_ALL = MSER_OUTPUT_FILE + cam.path + MSER_ALL_FILE + IMG_EXTENSION
     return(IMG_MSER_ALL)
 
-def mser_selected_intensity(cam_path):
-    IMG_MSER_SELECTED_INTENSITY = MSER_OUTPUT_FILE + cam_path + MSER_SELECTED_INTENSITY_FILE + IMG_EXTENSION
+def mser_selected_intensity(cam):
+    IMG_MSER_SELECTED_INTENSITY = MSER_OUTPUT_FILE + cam.path + MSER_SELECTED_INTENSITY_FILE + IMG_EXTENSION
     return(IMG_MSER_SELECTED_INTENSITY)
 
-def mser_duplicated_supression(cam_path):
-    IMG_MSER_DUPLICATED_SUPRESSION = MSER_OUTPUT_FILE + cam_path + MSER_DUPLICATED_SUPRESSION_FILE + IMG_EXTENSION
+def mser_duplicated_supression(cam):
+    IMG_MSER_DUPLICATED_SUPRESSION = MSER_OUTPUT_FILE + cam.path + MSER_DUPLICATED_SUPRESSION_FILE + IMG_EXTENSION
     return(IMG_MSER_DUPLICATED_SUPRESSION)
 
-def mser_selected(cam_path):
-    IMG_MSER_SELECTED = MSER_OUTPUT_FILE + cam_path + MSER_SELECTED_FILE + IMG_EXTENSION
+def mser_selected(cam):
+    IMG_MSER_SELECTED = MSER_OUTPUT_FILE + cam.path + MSER_SELECTED_FILE + IMG_EXTENSION
     return(IMG_MSER_SELECTED)
+
+#------------------------------------------------------------------------------------------#
+def switch_template_file_name(cam): 
+    TEMPLATE_FILE_NAME = 'myre_template_' + cam.name
+    return(TEMPLATE_FILE_NAME)
+
+def switch_template_matching_output_name(cam): 
+    TEMPLATE_MATCHING_OUTPUT_NAME = "template_matching_" + cam.name
+    return(TEMPLATE_MATCHING_OUTPUT_NAME)
+

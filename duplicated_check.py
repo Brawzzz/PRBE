@@ -4,7 +4,7 @@ import setup as stp
 
 def duplicated_check(img, regions, cnt, centers):
 
-    n_atol = 10 
+    n_atol = 20 
 
     box = [cv.boundingRect(i) for i in cnt]
     B = np.array(box)
@@ -35,5 +35,5 @@ def duplicated_check(img, regions, cnt, centers):
         
     cv.imwrite(stp.IMG_MSER_DUPLICATED_SUPRESSION, clone)
 
-    return(new_regions, new_contours, new_centers, b_box, clone)
+    return(new_regions, new_contours, new_centers, b_box)
 
