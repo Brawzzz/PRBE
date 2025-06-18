@@ -1,79 +1,97 @@
 import cv2 as cv
 import numpy as np
 import glob
+import setup as stp  
+import setup_camera as stp_cam
 from mser import detect_mser 
-import setup as stp
 
 
-lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
+CAM = stp_cam.B2
+SEQUENCE = stp.Sequence.NOISE
+#----------------------------------------------------------------------------------------#
+#---------------------------------------- IMAGES ----------------------------------------#
+#----------------------------------------------------------------------------------------#
+SEQUENCE_PATH = stp.switch_sequence_path(CAM, SEQUENCE.value) 
+image_names = sorted(glob.glob(stp.NOISE_PATH + "*.bmp"))
+if len(image_names) < 2:
+    print("#======================================================================#")
+    raise ValueError("MINIMUM TWO IMAGES ARE NEEDED")
+    print("#======================================================================#")
 
-image_path = sorted(glob.glob(stp.GROUND_MOTION_PATH + "*.bmp"))
-if len(image_path) < 2:
-    raise ValueError("Il faut au moins 2 images pour faire du flow optique.")
+img = cv.imread(image_names[0])
+mask = np.zeros_like(img)
 
-img0 = cv.imread(image_path[0])
-if img0 is None:
-    raise IOError(f"Impossible de lire la première image : {image_path[0]}")
-gray0 = cv.cvtColor(img0, cv.COLOR_BGR2GRAY)
+if img is None:
+    print("#======================================================================#")
+    raise IOError(f"ERROR READING FIRST IMAGES : {image_names[0]}")
+    print("#======================================================================#")   
 
-_, _, mser_centers = detect_mser(gray0, intensity_th=8)
+img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+img_gray_prev = img_gray.copy()
 
-# # Nettoyage des points (x, y) bien formés
-# mser_centers_clean = [tuple(pt) for pt in mser_centers if len(pt) == 2 and all(isinstance(x, (int, float)) for x in pt)]
-# if not mser_centers_clean:
-#     raise ValueError("Aucun point MSER valide détecté.")
+roi_rect = [CAM.x0, CAM.y0, stp.WINDOW_WIDTH, stp.WINDOW_HEIGHT] 
+roi_img = img_gray[int(roi_rect[1]):int(roi_rect[1] + roi_rect[3]), int(roi_rect[0]):int(roi_rect[0] + roi_rect[2])]
 
-p0 = np.array(mser_centers, dtype=np.float32).reshape(-1, 1, 2)
+#----------------------------------------------------------------------------------------#
+#----------------------------------------- MSER -----------------------------------------#
+#----------------------------------------------------------------------------------------#
+(mser_regions, mser_contours, mser_centers) = detect_mser(img_gray, roi_img, CAM)
 
-# Initialisation du masque pour dessin des trajectoires
-prev_gray = gray0.copy()
-mask = np.zeros_like(img0)
+#----------------------------------------------------------------------------------------#
+#-------------------------------------- OPTIC FLOW --------------------------------------#
+#----------------------------------------------------------------------------------------#
+lk_params = dict(winSize=(5, 5), maxLevel=1, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.02))
 
-# === Boucle sur les images suivantes ===#
-for path in image_path[1:]:
-    
-    frame = cv.imread(path)
+mser_centers_prev = np.array(mser_centers, dtype=np.float32).reshape(-1, 1, 2)
+
+vect = []
+magnitude = []
+for path in image_names[1:]:
+
+    frame = cv.imread(path, cv.IMREAD_COLOR)
     if frame is None:
-        print(f" Impossible de lire l’image : {path}. On passe.")
+        print("#======================================================================#")
+        print(f"ERROR READING : {path} SKIP")
+        print("#======================================================================#")
         continue
     frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-    # Vérification que p0 n’est pas vide
-    if p0 is None or len(p0) == 0:
-        print(" Aucun point à suivre : p0 vide. Arrêt du suivi.")
+    (mser_centers_next, status, err) = cv.calcOpticalFlowPyrLK(img_gray_prev, frame_gray, mser_centers_prev, None, **lk_params)
+
+    new_valid_point = mser_centers_next[status == 1]
+    old_valid_point = mser_centers_prev[status == 1]
+
+    if len(new_valid_point) == 0:
+        print("#======================================================================#")
+        print("\t\tNO VALID POINTS DETECTED")
+        print("#======================================================================#")
         break
+    
+    #------------------------------------------------------------------------------------#
+    #----------------------------------- TRAJ DRAWING -----------------------------------#
+    #------------------------------------------------------------------------------------#
 
-    # Calcul du flow optique
-    p1, st, err = cv.calcOpticalFlowPyrLK(prev_gray, frame_gray, p0, None, **lk_params)
+    for new_points, old_points in zip(new_valid_point, old_valid_point):
 
-    if p1 is None or st is None:
-        print("Optical flow échoué pour cette image. On passe.")
-        continue
+        (a, b) = new_points.ravel()
+        (c, d) = old_points.ravel()
 
-    # Points valides uniquement
-    good_new = p1[st == 1]
-    good_old = p0[st == 1]
+        cv.line(mask, (int(a),int(b)), (int(c), int(d)), (0, 255, 0), 1)
+        cv.circle(frame, (int(a), int(b)), 6, (0, 0, 255), -1)
 
-    if len(good_new) == 0:
-        print("⚠️ Aucun point valide détecté par Optical Flow.")
-        break
+        vect.append([a-c, b-d])
 
-    # Affichage des trajectoires
-    for new, old in zip(good_new, good_old):
-        a, b = new.ravel()
-        c, d = old.ravel()
-        # cv.line(mask, (int(a), int(b)), (int(c), int(d)), (0, 255, 0), 2)
-        cv.circle(frame, (int(a), int(b)), 4, (0, 0, 255), -1)
+    print(vect, len(vect))
 
+    vect = []
     output = cv.add(frame, mask)
     cv.imshow('MSER Tracking + Lucas-Kanade', output)
 
     key = cv.waitKey(100)
-    if key == 27:  # ESC pour quitter
+    if key == 27:
         break
 
-    # Mise à jour
-    prev_gray = frame_gray.copy()
-    p0 = good_new.reshape(-1, 1, 2)
+    img_gray_prev = frame_gray.copy()
+    mser_centers_prev = new_valid_point.reshape(-1, 1, 2)
 
 cv.destroyAllWindows()
