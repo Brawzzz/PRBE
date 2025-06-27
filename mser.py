@@ -82,7 +82,7 @@ def detect_mser(img, roi_img, cam):
     img_clone = cv.cvtColor(img, cv.COLOR_GRAY2RGB) 
 
     for c in result_centroid:
-        img_clone = cv.circle(img_clone, c, radius=4, color=(255, 0, 0))
+        img_clone = cv.circle(img_clone, c, radius=4, color=(255, 0, 0), thickness=2)
 
     font = cv.FONT_HERSHEY_SIMPLEX
     font_scale = 1
@@ -120,16 +120,18 @@ def find_matching_centers(mser_centers, mtx_b1_b2):
 
         c1_pixels_homogeneous = np.array([c1_pixels[0], c1_pixels[1], 1])
         c1_cam_b1 = np.linalg.inv(stp_cam.B1.mtx) @ c1_pixels_homogeneous
+        c1_cam_b1_w = np.linalg.inv(stp_cam.B1.rotation_mtx) @ c1_cam_b1
 
-        ray_vector_c1 = c1_cam_b1 - optic_center_cam_b1
+        ray_vector_c1 = c1_cam_b1_w - optic_center_cam_b1
         ray_vectors_b1.append((ray_vector_c1, c1_pixels))
     
     for c2_pixels in mser_centers_b2_pixels :
 
         c2_pixels_homogeneous = np.array([c2_pixels[0], c2_pixels[1], 1])
         c2_cam_b2 = np.linalg.inv(stp_cam.B2.mtx) @ c2_pixels_homogeneous
+        c2_cam_b2_w = np.linalg.inv(stp_cam.B2.rotation_mtx) @ c2_cam_b2
 
-        ray_vector_c2 = c2_cam_b2 - optic_center_cam_b2
+        ray_vector_c2 = c2_cam_b2_w - optic_center_cam_b2
         ray_vectors_b2.append((ray_vector_c2, c2_pixels))
 
     d_min = sys.float_info.max
@@ -152,9 +154,11 @@ def find_matching_centers(mser_centers, mtx_b1_b2):
 
             if(d <= d_min):
                 d_min = d
+
+                c1_pixels_valid = c1_pixels
                 c2_pixels_valid = c2_pixels
 
-        matching_points.append((c1_pixels, c2_pixels_valid))
+        matching_points.append((c1_pixels_valid, c2_pixels_valid))
 
     return(matching_points)
 
@@ -191,6 +195,9 @@ def stereo_points(IMG_INDEX, SEQUENCE, rotation_mtx):
         else:
             tronquee = image_names[IMG_INDEX]
         print("#======================================================================#\n")
+
+        #-------------------------- UNDISTORD IMAGE --------------------------#
+        img = cv.undistort(img, cam.mtx, cam.dist_coeff)
 
         #-------------------------- IMAGE ROI --------------------------#
         roi_rect = [cam.x0, cam.y0, stp.WINDOW_WIDTH, stp.WINDOW_HEIGHT] 
@@ -230,8 +237,19 @@ def stereo_points(IMG_INDEX, SEQUENCE, rotation_mtx):
         image_names = sorted(glob.glob(SEQUENCE_PATH + '*.bmp'))
         img = cv.imread(image_names[IMG_INDEX], cv.IMREAD_COLOR)
         
+        #-------------------------- UNDISTORD IMAGE --------------------------#
+        img = cv.undistort(img, cam.mtx, cam.dist_coeff)
+
+        #-------------------------- RENDER IMAGE --------------------------#
+        font = cv.FONT_HERSHEY_SIMPLEX
+        font_scale = 1
+        color = (0, 0, 255)
+        thickness = 1
         for i in range(0, len(matching_centers)):
-            cv.circle(img, matching_centers[i][k], radius=4, color=(255, 0, 0))
+            number = str(i)
+            c = matching_centers[i][k]
+            cv.circle(img, c, radius=4, color=(255, 0, 0), thickness=2)
+            cv.putText(img, number, (c[0] + 10, c[1] - 10), font, font_scale, color, thickness)
 
         cv.imshow('roi_img', img)
         cv.waitKey(0)
@@ -243,31 +261,6 @@ def stereo_points(IMG_INDEX, SEQUENCE, rotation_mtx):
     print("#======================================================================#")
     
     return matching_centers
-
-
-#--------------------------------------------------------------------------------------------------#
-#---------------------------------------------- LOCAL MAIN ----------------------------------------#
-#--------------------------------------------------------------------------------------------------#
-if __name__ == "__main__":
-
-    image_names = glob.glob(stp.GROUND_MOTION_PATH + '*.bmp')
-    img = cv.imread(image_names[0], cv.IMREAD_GRAYSCALE)
-
-    #------------- ROI IMAGE -------------#
-    x0 = 150
-    y0 = 265
-
-    window_width = 1280
-    window_height = 650
-
-    roi_rect = [x0, y0, window_width, window_height] 
-    roi_img = img[int(roi_rect[1]):int(roi_rect[1] + roi_rect[3]), int(roi_rect[0]):int(roi_rect[0] + roi_rect[2])]
-
-    cv.imshow('roi_img', roi_img)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    (regions, contours, centers) = detect_mser(roi_img)
 
     
 

@@ -73,6 +73,8 @@ def calib_int(cam):
         print("fy = ", fy, "mm")
         print("\n")
 
+        (camera_mtx, roi) = cv.getOptimalNewCameraMatrix(camera_mtx, dist_coeff, (w, h), 1, (w, h))
+        
         return(camera_mtx, dist_coeff)
 
 #-----------------------------------------------------------------------------------#

@@ -18,9 +18,6 @@ stp_cam.B1.calib(INTRINSIC_CALIB_DATA_1, EXTRINSIC_CALIB_DATA_1)
 print("#======================================================================#")
 print('\tEXTRINSIC_CALIB_DATA_1')
 print(stp_cam.B1.extrinsic_mtx)
-print("\n")
-print("#======================================================================#")
-
 
 INTRINSIC_CALIB_DATA_2 = stp.switch_calib_data_path(stp_cam.B2, type="int")
 EXTRINSIC_CALIB_DATA_2 = stp.switch_calib_data_path(stp_cam.B2, type="ext")
@@ -33,6 +30,14 @@ print('\tEXTRINSIC_CALIB_DATA_2')
 print(stp_cam.B2.extrinsic_mtx)
 print("\n")
 print("#======================================================================#")
+
+print("#======================================================================#")
+print('\tINTRINSIC_CALIB_DATA_1')
+print(stp_cam.B1.mtx)
+
+print("#======================================================================#")
+print('\tINTRINSIC_CALIB_DATA_2')
+print(stp_cam.B2.mtx)
 
 MATRIX_B1_B2 = np.linalg.inv(stp_cam.B1.extrinsic_mtx) @ stp_cam.B2.extrinsic_mtx
 MATRIX_B2_B1 = np.linalg.inv(stp_cam.B2.extrinsic_mtx) @ stp_cam.B1.extrinsic_mtx
@@ -53,7 +58,6 @@ if(SETUP_B1 and SETUP_B2):
 
     IMG_INDEX = 0
     SEQUENCE = stp.Sequence.NOISE
-
 
     stereo_points = mser.stereo_points(IMG_INDEX, SEQUENCE, MATRIX_B1_B2)
 
